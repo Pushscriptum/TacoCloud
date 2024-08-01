@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.PreparedStatementCreatorFactory;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
 import tacos.Ingredient;
+import tacos.IngredientRef;
 import tacos.Taco;
 import tacos.TacoOrder;
 
@@ -20,7 +21,7 @@ import java.util.Objects;
 @Repository
 public class JdbcOrderRepository implements OrderRepository {
 
-    private JdbcOperations jdbcOperations;
+    private final JdbcOperations jdbcOperations;
 
     @Autowired
     public JdbcOrderRepository(JdbcOperations jdbcOperations) {
@@ -31,7 +32,7 @@ public class JdbcOrderRepository implements OrderRepository {
     public TacoOrder save(TacoOrder order) {
         PreparedStatementCreatorFactory psCreatorFactory = getPreparedStatementCreatorFactory();
 
-        order.setPlaceAt(new Date());
+        order.setPlacedAt(new Date());
 
         PreparedStatementCreator psCreator = psCreatorFactory.newPreparedStatementCreator(
                 Arrays.asList(
@@ -43,7 +44,7 @@ public class JdbcOrderRepository implements OrderRepository {
                         order.getCcNumber(),
                         order.getCcExpiration(),
                         order.getCcCVV(),
-                        order.getPlaceAt()
+                        order.getPlacedAt()
                 )
         );
 
@@ -53,20 +54,20 @@ public class JdbcOrderRepository implements OrderRepository {
         order.setId(orderId);
 
         List<Taco> tacos = order.getTacos();
-
+        int i = 1;
         for (Taco taco : tacos) {
-            saveTaco(orderId, taco);
+            saveTaco(orderId, i++, taco);
         }
 
         return order;
     }
 
-    private void saveTaco(Long orderId, Taco taco) {
-        taco.setCreateAt(new Date());
+    private void saveTaco(Long orderId, int i, Taco taco) {
+        taco.setCreatedAt(new Date());
         PreparedStatementCreatorFactory psCreatorFactory =
                 new PreparedStatementCreatorFactory(
-                        "INSERT INTO Taco (name, created_at, taco_order) VALUES (?, ?, ?)",
-                        Types.VARCHAR, Types.TIMESTAMP, Type.LONG
+                        "INSERT INTO Taco (name, created_at, taco_order, taco_order_key) VALUES (?, ?, ?, ?)",
+                        Types.VARCHAR, Types.TIMESTAMP, Type.LONG, Type.LONG
                 );
 
         psCreatorFactory.setReturnGeneratedKeys(true);
@@ -74,7 +75,8 @@ public class JdbcOrderRepository implements OrderRepository {
         PreparedStatementCreator psCreator = psCreatorFactory.newPreparedStatementCreator(
                 Arrays.asList(
                         taco.getName(),
-                        taco.getCreateAt(),
+                        taco.getCreatedAt(),
+                        i,
                         orderId
                 )
         );
@@ -88,11 +90,12 @@ public class JdbcOrderRepository implements OrderRepository {
 
     }
 
-    private void saveIngredientRefs(long tacoId, List<Ingredient> ingredients) {
+    private void saveIngredientRefs(long tacoId, List<IngredientRef> ingredients) {
 
-        for (Ingredient ingredient : ingredients) {
-            jdbcOperations.update("INSERT INTO Ingredient_Ref (ingredient, taco) VALUES (?, ?)",
-                    ingredient.getId(), tacoId);
+        int key = 1;
+        for (IngredientRef ingredient : ingredients) {
+            jdbcOperations.update("INSERT INTO Ingredient_Ref (ingredient, taco, taco_key) VALUES (?, ?, ?)",
+                    ingredient.getIngredient(), tacoId, key++);
         }
     }
 
