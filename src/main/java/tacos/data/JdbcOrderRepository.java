@@ -1,11 +1,13 @@
 package tacos.data;
 
+import org.springframework.asm.Type;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.PreparedStatementCreatorFactory;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
+import tacos.Ingredient;
 import tacos.Taco;
 import tacos.TacoOrder;
 
@@ -51,13 +53,47 @@ public class JdbcOrderRepository implements OrderRepository {
         order.setId(orderId);
 
         List<Taco> tacos = order.getTacos();
-        int i = 0;
 
         for (Taco taco : tacos) {
-            saveTaco(orderId, i++, taco);
+            saveTaco(orderId, taco);
         }
 
         return order;
+    }
+
+    private void saveTaco(Long orderId, Taco taco) {
+        taco.setCreateAt(new Date());
+        PreparedStatementCreatorFactory psCreatorFactory =
+                new PreparedStatementCreatorFactory(
+                        "INSERT INTO Taco (name, created_at, taco_order) VALUES (?, ?, ?)",
+                        Types.VARCHAR, Types.TIMESTAMP, Type.LONG
+                );
+
+        psCreatorFactory.setReturnGeneratedKeys(true);
+
+        PreparedStatementCreator psCreator = psCreatorFactory.newPreparedStatementCreator(
+                Arrays.asList(
+                        taco.getName(),
+                        taco.getCreateAt(),
+                        orderId
+                )
+        );
+
+        GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcOperations.update(psCreator, keyHolder);
+        long tacoId = Objects.requireNonNull(keyHolder.getKey()).longValue();
+        taco.setId(tacoId);
+
+        saveIngredientRefs(tacoId, taco.getIngredients());
+
+    }
+
+    private void saveIngredientRefs(long tacoId, List<Ingredient> ingredients) {
+
+        for (Ingredient ingredient : ingredients) {
+            jdbcOperations.update("INSERT INTO Ingredient_Ref (ingredient, taco) VALUES (?, ?)",
+                    ingredient.getId(), tacoId);
+        }
     }
 
     private PreparedStatementCreatorFactory getPreparedStatementCreatorFactory() {
