@@ -35,6 +35,19 @@ create table if not exists Ingredient
     type varchar(10) not null
 );
 
+create table if not exists Custom_user
+(
+    id           identity,
+    username     varchar(30) not null,
+    password     varchar     not null,
+    fullname     varchar(30) not null,
+    street       varchar(45) not null,
+    city         varchar(25) not null,
+    state        varchar(25) not null,
+    zip          varchar(30) not null,
+    phone_number varchar(45) not null
+);
+
 alter table Taco
     add foreign key (taco_order) references Taco_Order (id);
 

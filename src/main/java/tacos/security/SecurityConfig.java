@@ -2,17 +2,17 @@ package tacos.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import org.springframework.security.web.SecurityFilterChain;
+import tacos.User;
+import tacos.data.UserRepository;
 
 @Configuration
 public class SecurityConfig {
@@ -23,14 +23,26 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
-        List<UserDetails> userList = new ArrayList<>();
-        userList.add(new User("buzz", encoder.encode("password"),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))));
+    public UserDetailsService userDetailsService(UserRepository userRepository) {
+        return username -> {
+            User user = userRepository.findByUsername(username);
+            if (user != null) return user;
+            throw new UsernameNotFoundException(username);
+        };
+    }
 
-        userList.add(new User("woody", encoder.encode("password"),
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))));
-
-        return new InMemoryUserDetailsManager(userList);
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf().disable()
+                .authorizeRequests()
+                .antMatchers("/design", "/orders").hasRole("USER")
+                .antMatchers("/", "/**").permitAll()
+                .and()
+                .formLogin()
+                .loginPage("/login")
+                .defaultSuccessUrl("/design", true)
+                .and()
+                .build();
     }
 }
