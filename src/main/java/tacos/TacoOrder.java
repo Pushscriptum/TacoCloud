@@ -51,6 +51,15 @@ public class TacoOrder {
     @OneToMany(cascade = CascadeType.ALL)
     private List<Taco> tacos = new ArrayList<>();
 
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    public void setUser(User user) {
+        user.getTacoOrders().add(this);
+        this.user = user;
+    }
+
     public void addTaco(Taco taco) {
         tacos.add(taco);
     }
